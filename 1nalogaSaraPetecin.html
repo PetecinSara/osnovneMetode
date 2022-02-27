@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <form id="myForm">
+        <input type="file" id="csvFile" accept=".csv" />
+        <br />
+        <input type="submit" value="Pošlji" />
+        <table id="tabela"></table>
+
+    </form>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
+    </script>
+    <script type="text/javascript">
+        const myForm = document.getElementById("myForm");
+        const csvFile = document.getElementById("csvFile");
+
+        function csvToArray(str, delimiter = ",") {
+            const headers = str.slice(0, str.indexOf("\n")).split(delimiter);
+
+            const rows = str.slice(str.indexOf("\n") + 1).split("\n");
+
+            const arr = rows.map(function(row) {
+                const values = row.split(delimiter);
+                const el = headers.reduce(function(object, header, index) {
+                    object[header] = values[index];
+                    return object;
+                }, {});
+                return el;
+            });
+
+            return arr;
+        }
+
+        myForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            const input = csvFile.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const data = csvToArray(text);
+
+                let poljeVrednosti = []
+                for (let x = 0; x < data.length; x++) {
+                    poljeVrednosti.push(Object.values(data[x]));
+                };
+
+                let p = [];
+                let o = [];
+                for (let z = 1; z < poljeVrednosti[0].length; z++) {
+                    let vrednost = parseInt(poljeVrednosti[0][z])
+                    p.push(vrednost);
+                }
+
+                for (let z = 1; z < poljeVrednosti[1].length; z++) {
+                    let vrednost = parseInt(poljeVrednosti[1][z])
+                    o.push(vrednost);
+                }
+
+                document.write(`<h1> Izračun osnovnih metod odločanja</h1>` + `<br>`)
+                document.write("Prebrana je bila datoteka: " + csvFile.files[0].name + `<br>`)
+
+                // O P T I M I S T
+                var optimist = o.reduce(function(a, b) { //max število znotraj polja optimista
+                    return Math.max(a, b);
+                });
+
+                var indexOptimist = (o.indexOf(optimist)) + 1; //index, da najdemo key v objektu, ki je znotraj polja data
+                var keyO = Object.keys(data[0])[indexOptimist];
+
+                document.write("Optimist: " + keyO + " (" + optimist + ")" + `<br>`);
+
+                // P E S I M I S T
+                var pesimist = p.reduce(function(a, b) {
+                    return Math.max(a, b);
+                });
+
+                var indexPesimist = (p.indexOf(pesimist)) + 1;
+                var keyP = Object.keys(data[0])[indexPesimist];
+
+                document.write("Pesimist: " + keyP + " (" + pesimist + ")" + `<br>`);
+
+                // L A P L A C E
+                var povprečja = [];
+                for (let q = 0; q < o.length; q++) {
+                    let povprečje = ((o[q]) + (p[q])) / 2
+                    povprečja.push(povprečje);
+                }
+                var laplace = povprečja.reduce(function(a, b) {
+                    return Math.max(a, b);
+                });
+
+                var indexLaplace = (povprečja.indexOf(laplace)) + 1;
+                var keyL = Object.keys(data[0])[indexLaplace];
+
+                document.write("Laplace: " + keyL + " (" + laplace + ")" + `<br>`);
+
+                // N A J M A N J Š E   O B Ž A L O V A N J E   (S A V A G E)
+                var razlike = [];
+                for (let x = 0; x < o.length; x++) {
+                    let razlikaP = optimist - o[x];
+                    let razlikaZ = pesimist - p[x];
+                    razlike.push(Math.max(razlikaP, razlikaZ));
+                }
+
+                var savage = razlike.reduce(function(a, b) { //min st od razlik
+                    return Math.min(a, b);
+                });
+
+                var indexSavage = (razlike.indexOf(savage)) + 1; //index
+                var keyS = Object.keys(data[0])[indexSavage];
+
+                document.write("Savage: " + keyS + " (" + savage + ")" + `<br><br>`);
+
+                // H U R W I T Z E V   K R I T E R I J
+                let odlocanja = [];
+                for (let x = 1; x <= o.length; x++) {
+                    var metode = Object.keys(data[0])[x];
+                    odlocanja.push(metode);
+                };
+
+                document.write("Hurwitzev kriterij: " + `<br>` + `
+                <table id="tabela"; style="border: 1px solid black; border-collapse: collapse;"></table>`);
+
+                let tabela = document.getElementById("tabela");
+                let vrstica = tabela.insertRow();
+                let polje1 = vrstica.insertCell();
+                polje1.innerHTML = `<th><b>h</b></th>`
+                for (let x = 0; x < odlocanja.length; x++) {
+                    let polje2 = vrstica.insertCell();
+                    polje2.innerHTML = `<th>${odlocanja[x]}</th>`
+                };
+                let h = 0;
+                for (let i = 0; i < 11; i++) {
+                    let vrstica1 = tabela.insertRow();
+                    let polje3 = vrstica1.insertCell();
+                    polje3.innerHTML = `<th>${h.toFixed(1)}</th>`
+                    for (let x = 0; x < odlocanja.length; x++) {
+                        let rezultat = (h * o[x]) + ((1 - h) * p[x]);
+                        let polje3 = vrstica1.insertCell();
+                        polje3.innerHTML = rezultat.toFixed(1);
+                    }
+                    h = h + 0.1;
+                };
+
+                // G R A F
+                document.write(`<canvas id="myChart" style="width:100%;max-width:700px"></canvas>`);
+
+                let vrednostiOdločanja = [];
+                for (let x = 0; x < odlocanja.length; x++) {
+                    let h1 = 0;
+                    vrednostiOdločanja.push([]);
+
+                    for (let y = 0; y < 11; y++) {
+                        let rezultat = (h1 * o[x]) + ((1 - h1) * p[x]);
+                        vrednostiOdločanja[x].push(rezultat);
+                        h1 = h1 + 0.1;
+                    }
+                }
+                document.write(risanjeGrafa(vrednostiOdločanja, odlocanja));
+            };
+            reader.readAsText(input);
+        });
+
+        function risanjeGrafa(vrednostiOdločanja, odlocanja) {
+
+            let graf = `new Chart("myChart", {
+                    type: "line",
+                    data: {
+                        labels: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+                        datasets: [`
+            for (let x = 0; x < vrednostiOdločanja.length; x++) {
+
+                graf += `{
+                                data: [${vrednostiOdločanja[x]}],`
+                if (x == odlocanja.length - 1) {
+                    graf += `label: "${odlocanja[x].slice(0,-1)}",`
+                } else {
+                    graf += `label: "${odlocanja[x]}",`
+                }
+                graf += `borderColor: "#${Math.floor(Math.random() * 16777215).toString(16)}",
+                fill: false
+                            },`
+            }
+            graf += `]}
+});`
+
+            return eval(graf);
+
+        }
+    </script>
+
+</html>
